@@ -32,7 +32,14 @@
 	],
 	"observability": {
 		"enabled": true
-	}
+	},
+	"d1_databases": [
+		{
+		  "binding": "DB",
+		  "database_name": "northwind",
+		  "database_id": "1247ada2-21d0-4a5a-920d-262951bbf53b",
+		},
+	  ],
 	/**
 	 * Smart Placement
 	 * Docs: https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement

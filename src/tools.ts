@@ -8,29 +8,46 @@ import { z } from "zod";
 import type { Chat } from "./server";
 import { getCurrentAgent } from "agents";
 import { unstable_scheduleSchema } from "agents/schedule";
+import { env } from "cloudflare:workers";
 
-/**
- * Weather information tool that requires human confirmation
- * When invoked, this will present a confirmation dialog to the user
- * The actual implementation is in the executions object below
- */
-const getWeatherInformation = tool({
-  description: "show the weather in a given city to the user",
-  parameters: z.object({ city: z.string() }),
-  // Omitting execute function makes this tool require human confirmation
+const getInventoryByProductName = tool({
+  description: "Search the database inventory by product name",
+  parameters: z.object({
+    name: z.string(),
+  }),
+  execute: async ({ name }) => {
+    return await env.DB.prepare(
+      `SELECT UnitsInStock FROM product WHERE ProductName = ?`
+    )
+      .bind(name)
+      .first();
+  },
 });
 
-/**
- * Local time tool that executes automatically
- * Since it includes an execute function, it will run without user confirmation
- * This is suitable for low-risk operations that don't need oversight
- */
-const getLocalTime = tool({
-  description: "get the local time for a specified location",
-  parameters: z.object({ location: z.string() }),
-  execute: async ({ location }) => {
-    console.log(`Getting local time for ${location}`);
-    return "10am";
+const updateInventoryByProductName = tool({
+  description: "Update the database inventory by product name",
+  parameters: z.object({
+    name: z.string(),
+    unitsInStock: z.number(),
+  }),
+});
+
+const getCustomerInformation = tool({
+  description: "Get customer information by customer name or company name",
+  parameters: z.object({
+    customerName: z
+      .string()
+      .describe("Customer name or company name to search for"),
+  }),
+  execute: async ({ customerName }) => {
+    return await env.DB.prepare(
+      `SELECT Id, CompanyName, ContactName, ContactTitle, Address, City, Region, PostalCode, Country, Phone, Fax 
+       FROM Customer 
+       WHERE CompanyName LIKE ? OR ContactName LIKE ?
+       LIMIT 10`
+    )
+      .bind(`%${customerName}%`, `%${customerName}%`)
+      .all();
   },
 });
 
@@ -114,11 +131,12 @@ const cancelScheduledTask = tool({
  * These will be provided to the AI model to describe available capabilities
  */
 export const tools = {
-  getWeatherInformation,
-  getLocalTime,
   scheduleTask,
   getScheduledTasks,
   cancelScheduledTask,
+  updateInventoryByProductName,
+  getCustomerInformation,
+  getInventoryByProductName
 };
 
 /**
@@ -128,8 +146,11 @@ export const tools = {
  * NOTE: keys below should match toolsRequiringConfirmation in app.tsx
  */
 export const executions = {
-  getWeatherInformation: async ({ city }: { city: string }) => {
-    console.log(`Getting weather information for ${city}`);
-    return `The weather in ${city} is sunny`;
+  updateInventoryByProductName: async ({ name, unitsInStock }: { name: string, unitsInStock: number }) => {
+    return await env.DB.prepare(
+      `Update Product Set UnitsInStock = ? WHERE ProductName = ?`
+    )
+      .bind(unitsInStock, name)
+      .all();
   },
 };
