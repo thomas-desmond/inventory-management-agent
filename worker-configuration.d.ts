@@ -6,6 +6,7 @@ declare namespace Cloudflare {
 		OPENAI_API_KEY: string;
 		Chat: DurableObjectNamespace<import("./src/server").Chat>;
         DB: D1Database;
+        AI: AI;
 	}
 }
 interface Env extends Cloudflare.Env {}
